@@ -1,0 +1,31 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+
+# Virtual Environment
+.venv/
+venv/
+env/
+
+# Environment
+.env
+
+# VS Code
+.vscode/
+
+# Python cache
+.pytest_cache/
+.mypy_cache/
+
+# Uploads & Outputs
+backend/app/uploads/*
+backend/app/outputs/*
+
+# Keep empty folders
+!backend/app/uploads/.gitkeep
+!backend/app/outputs/.gitkeep
+
+# React
+frontend/node_modules/
+frontend/dist/
