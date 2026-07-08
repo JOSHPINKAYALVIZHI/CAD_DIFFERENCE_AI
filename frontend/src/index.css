@@ -1,27 +1,27 @@
-/* Custom modern dark blueprint theme and drafting variables */
+/* Custom modern light blueprint and CAD drafting variables */
 :root {
-  --bg-primary: #0b0f19;      /* Dark blueprint background */
-  --bg-secondary: #131b2e;    /* Card & sidebar background */
-  --bg-tertiary: #1e293b;     /* High-vis hover slate */
-  --border-color: #2e3f6d;    /* Drafting line color */
-  --border-active: #00f0ff;   /* Glowing cyan active outline */
+  --bg-primary: #f8fafc;      /* Crisp light background */
+  --bg-secondary: #ffffff;    /* Pure white for cards & panels */
+  --bg-tertiary: #f1f5f9;     /* Light slate for hovers/headers */
+  --border-color: #cbd5e1;    /* Clean gray border */
+  --border-active: #0284c7;   /* Drafting blue active outline */
   
-  --text-primary: #f8fafc;    /* Crisp light text */
-  --text-secondary: #94a3b8;  /* Secondary slate text */
-  --text-muted: #64748b;      /* Faint drafting markings text */
+  --text-primary: #0f172a;    /* Dark slate primary text */
+  --text-secondary: #475569;  /* Gray-slate secondary text */
+  --text-muted: #94a3b8;      /* Faint markings text */
   
-  --accent-primary: #00b4d8;  /* Classic blueprint cyan */
-  --accent-hover: #00f0ff;    /* Glowing cyan hover state */
-  --accent-glow: rgba(0, 240, 255, 0.05);
+  --accent-primary: #0284c7;  /* Technical drafting blue */
+  --accent-hover: #0369a1;    /* Deep hover blue */
+  --accent-glow: rgba(2, 132, 199, 0.05);
   
-  --color-success: #10b981;  /* Drafting green (Additions) */
-  --color-danger: #ef4444;   /* Drafting red (Removals) */
-  --color-warning: #f59e0b;  /* Drafting amber */
-  --color-info: #06b6d4;     /* Drafting cyan */
+  --color-success: #10b981;  /* Additions green */
+  --color-danger: #ef4444;   /* Removals red */
+  --color-warning: #f59e0b;  /* Warnings amber */
+  --color-info: #06b6d4;     /* Info cyan */
   
-  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.5);
-  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.4), 0 2px 4px -1px rgba(0, 0, 0, 0.1);
-  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.6), 0 4px 6px -2px rgba(0, 0, 0, 0.2);
+  --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+  --shadow-md: 0 4px 6px -1px rgba(0, 0, 0, 0.05), 0 2px 4px -1px rgba(0, 0, 0, 0.02);
+  --shadow-lg: 0 10px 15px -3px rgba(0, 0, 0, 0.05), 0 4px 6px -2px rgba(0, 0, 0, 0.02);
   --font-family: 'Outfit', 'Inter', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
 }
 
@@ -34,10 +34,10 @@
 
 body {
   background-color: var(--bg-primary);
-  /* Blueprint drafting grid pattern */
+  /* Light blue drafting grid pattern */
   background-image: 
-    linear-gradient(rgba(46, 63, 109, 0.15) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(46, 63, 109, 0.15) 1px, transparent 1px);
+    linear-gradient(rgba(2, 132, 199, 0.03) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(2, 132, 199, 0.03) 1px, transparent 1px);
   background-size: 24px 24px;
   color: var(--text-primary);
   line-height: 1.5;
@@ -62,7 +62,7 @@ body {
   position: sticky;
   top: 0;
   z-index: 100;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.02);
 }
 
 .brand-section {
@@ -75,15 +75,15 @@ body {
   font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: -0.025em;
-  background: linear-gradient(135deg, #00f0ff, #00b4d8);
+  background: linear-gradient(135deg, #0284c7, #0369a1);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
 
 .brand-badge {
-  background: rgba(37, 99, 235, 0.15);
+  background: rgba(2, 132, 199, 0.15);
   color: var(--accent-hover);
-  border: 1px solid rgba(37, 99, 235, 0.3);
+  border: 1px solid rgba(2, 132, 199, 0.3);
   font-size: 0.75rem;
   padding: 0.15rem 0.5rem;
   border-radius: 9999px;
@@ -489,7 +489,7 @@ body {
 }
 
 .regions-table th {
-  background: #f8fafc;
+  background: var(--bg-tertiary);
   padding: 0.75rem 1rem;
   font-weight: 600;
   color: var(--text-secondary);
@@ -507,7 +507,7 @@ body {
 }
 
 .regions-table tr:hover {
-  background: #f1f5f9;
+  background: var(--bg-tertiary);
   cursor: pointer;
 }
 
@@ -574,3 +574,70 @@ body {
   from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* Advanced Micro-Animations & Hover Effects */
+.card, .kpi-card, .btn {
+  transition: transform 0.25s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.25s cubic-bezier(0.16, 1, 0.3, 1), border-color 0.25s ease;
+}
+
+.card:hover, .kpi-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 20px rgba(2, 132, 199, 0.06), var(--shadow-md);
+  border-color: rgba(2, 132, 199, 0.25);
+}
+
+.btn {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.btn:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(2, 132, 199, 0.15);
+}
+
+.btn:active {
+  transform: translateY(1px);
+}
+
+/* Selected row animation pulse */
+.regions-table tr.selected {
+  background: rgba(2, 132, 199, 0.08);
+  border-left: 3px solid var(--accent-primary);
+  animation: rowPulse 2s infinite ease-in-out;
+}
+
+@keyframes rowPulse {
+  0%, 100% { background-color: rgba(2, 132, 199, 0.06); }
+  50% { background-color: rgba(2, 132, 199, 0.12); }
+}
+
+/* Staggered entry animation */
+.animate-slide-up {
+  animation: slideUp 0.7s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  opacity: 0;
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.delay-1 { animation-delay: 0.1s; }
+.delay-2 { animation-delay: 0.2s; }
+.delay-3 { animation-delay: 0.3s; }
+
+/* Interactive chat buttons */
+.details-panel button {
+  transition: all 0.2s ease;
+}
+.details-panel button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(2, 132, 199, 0.12);
+}
+

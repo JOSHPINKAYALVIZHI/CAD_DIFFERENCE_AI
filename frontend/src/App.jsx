@@ -401,7 +401,7 @@ function App() {
           <div className="fade-in">
             
             {/* 1. KPIs Section */}
-            <div className="kpi-grid">
+            <div className="kpi-grid animate-slide-up">
               <div className="kpi-card">
                 <div className="kpi-icon-wrapper">
                   <Grid size={20} color="#3b82f6" />
@@ -446,7 +446,7 @@ function App() {
             </div>
 
             {/* 2. Visualizer Layout (Viewer + Details Panel) */}
-            <div className="visualizer-layout">
+            <div className="visualizer-layout animate-slide-up delay-1">
               
               {/* Left Column: Image Canvas */}
               <div className="visualizer-viewer">
@@ -821,7 +821,7 @@ function App() {
             </div>
 
             {/* 3. Regions Table */}
-            <div className="regions-table-container">
+            <div className="regions-table-container animate-slide-up delay-2">
               <table className="regions-table">
                 <thead>
                   <tr>
