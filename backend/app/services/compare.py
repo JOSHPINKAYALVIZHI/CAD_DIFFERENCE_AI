@@ -108,5 +108,35 @@ def detect_differences(
     
     return cleaned_mask, float(score)
 
+def estimate_optimal_noise_limit(mask: np.ndarray) -> int:
+    """
+    Analyzes the difference mask, its resolution, and the size distribution of raw contours
+    to automatically estimate the optimal noise limit.
+    """
+    # Find all contours in the raw difference mask (without min_area filter)
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours:
+        return 40
+        
+    areas = [float(cv2.contourArea(c)) for c in contours if cv2.contourArea(c) > 5]
+    if not areas:
+        return 40
+        
+    # Default sensitive limit for clean drawings (vector PDFs or clean exports)
+    base_limit = 40
+    
+    # Analyze distribution of contour areas to detect high-frequency noise/jitter
+    tiny_contours = [a for a in areas if a < 150]
+    
+    # If we have a high density of contours and more than 60% are tiny, it is a noisy scan.
+    # We dynamically calculate the noise floor using a 3.0x multiplier.
+    if len(areas) > 15 and (len(tiny_contours) / len(areas)) > 0.60:
+        median_tiny = np.median(tiny_contours) if tiny_contours else 30
+        auto_limit = int(median_tiny * 3.0)
+        return max(base_limit, min(auto_limit, 140))
+        
+    return base_limit
+
+
 
 

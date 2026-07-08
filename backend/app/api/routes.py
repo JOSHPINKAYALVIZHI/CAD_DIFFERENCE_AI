@@ -6,8 +6,8 @@ import shutil
 import json
 from app.core.config import settings
 from app.schemas.response import ComparisonResponse
-from app.services.preprocess import preprocess_and_load, align_images
-from app.services.compare import detect_differences
+from app.services.preprocess import preprocess_and_load, align_images, crop_and_normalize_pair
+from app.services.compare import detect_differences, estimate_optimal_noise_limit
 from app.services.statistics import calculate_statistics
 from app.services.visualize import save_visualizations
 from app.services.summary import generate_ai_summary
@@ -18,7 +18,7 @@ router = APIRouter(prefix="/api/v1", tags=["Image Comparison"])
 async def compare_images(
     image_a: UploadFile = File(...),
     image_b: UploadFile = File(...),
-    min_area: int = Query(default=70, description="Minimum contour area in pixels to identify as difference")
+    min_area: int = Query(default=0, description="Minimum contour area in pixels to identify as difference. Set to 0 to auto-detect.")
 ):
     session_id = str(uuid.uuid4())
     
@@ -41,14 +41,22 @@ async def compare_images(
         img_a = preprocess_and_load(path_a)
         img_b = preprocess_and_load(path_b)
         
+        # Crop empty margins jointly and normalize resolution for scale stability
+        img_a, img_b = crop_and_normalize_pair(img_a, img_b)
+        
         # 2. Image Registration / Alignment (ORB & Homography)
         aligned_b, aligned_success = align_images(img_a, img_b)
         
         # 3. Difference Detection (SSIM & absdiff)
         mask, similarity_score = detect_differences(img_a, aligned_b)
         
+        # Auto-detect optimal noise limit if min_area is 0 or less
+        if min_area <= 0:
+            min_area = estimate_optimal_noise_limit(mask)
+            
         # 4. Extract Statistics & Layout centroids
         stats = calculate_statistics(mask, min_area=min_area)
+        stats["detected_noise_limit"] = min_area
         
         # 5. Render and Save Visualizations
         viz_urls = save_visualizations(
@@ -92,6 +100,7 @@ async def compare_images(
 
 @router.get("/compare/{session_id}/report", response_class=HTMLResponse)
 async def generate_report_html(session_id: str):
+    from datetime import datetime
     report_path = os.path.join(settings.OUTPUT_DIR, f"{session_id}_report.json")
     if not os.path.exists(report_path):
         raise HTTPException(status_code=404, detail="Comparison report metadata not found.")
@@ -99,6 +108,7 @@ async def generate_report_html(session_id: str):
     with open(report_path, "r") as rf:
         data = json.load(rf)
         
+    current_time = datetime.now().strftime("%Y-%m-%d %I:%M:%S %p")
     html_content = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -318,7 +328,7 @@ async def generate_report_html(session_id: str):
     <div class="report-card">
         <div class="header">
             <h1 class="title">CAD DRAWING COMPARISON REPORT</h1>
-            <div class="subtitle">Report Session: {session_id}</div>
+            <div class="subtitle" style="margin-top: 6px; font-size: 0.8rem; color: #64748b; font-family: inherit;">Generated: {current_time} &nbsp;|&nbsp; Session: {session_id}</div>
         </div>
         
         <div class="stats-grid">
@@ -431,3 +441,44 @@ async def generate_report_html(session_id: str):
 </html>
 """
     return HTMLResponse(content=html_content, status_code=200)
+
+
+# --- Chatbot schemas & endpoint ---
+from pydantic import BaseModel
+from typing import List
+from app.services.chat import generate_chat_response
+
+class ChatMessage(BaseModel):
+    role: str
+    content: str
+
+class ChatRequest(BaseModel):
+    message: str
+    history: List[ChatMessage]
+
+class ChatResponse(BaseModel):
+    response: str
+
+@router.post("/compare/{session_id}/chat", response_model=ChatResponse)
+async def chat_about_comparison(
+    session_id: str,
+    request: ChatRequest
+):
+    # 1. Load the session report JSON file
+    report_path = os.path.join(settings.OUTPUT_DIR, f"{session_id}_report.json")
+    if not os.path.exists(report_path):
+        raise HTTPException(status_code=404, detail="Session report not found. Please compare drawings first.")
+        
+    try:
+        with open(report_path, "r") as f:
+            report_data = json.load(f)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to read report data: {str(e)}")
+        
+    # 2. Call the chat helper service
+    try:
+        history_list = [{"role": msg.role, "content": msg.content} for msg in request.history]
+        response_text = generate_chat_response(report_data, request.message, history_list)
+        return ChatResponse(response=response_text)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to generate chatbot response: {str(e)}")

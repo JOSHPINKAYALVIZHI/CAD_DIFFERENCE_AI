@@ -19,12 +19,12 @@ env/
 .mypy_cache/
 
 # Uploads & Outputs
-backend/app/uploads/*
-backend/app/outputs/*
+app/uploads/*
+app/outputs/*
 
 # Keep empty folders
-!backend/app/uploads/.gitkeep
-!backend/app/outputs/.gitkeep
+!app/uploads/.gitkeep
+!app/outputs/.gitkeep
 
 # React
 frontend/node_modules/

@@ -66,8 +66,8 @@ The summary MUST include:
 4. Keep the tone professional, technical, and objective. 
 5. Do NOT mention "the list", "RANSAC", "computer vision", "the spreadsheet", "Region #1", or "bounding boxes". Speak as if you are directly looking at the drawing changes (e.g., "A new structure was added in the top-left...", "Modifications were observed near...").
 """
-        # Initialize Gemini 1.5 Flash (highly optimized and fast)
-        model = genai.GenerativeModel("gemini-1.5-flash")
+        # Initialize Gemini 2.5 Flash (highly optimized and fast)
+        model = genai.GenerativeModel("gemini-2.5-flash")
         response = model.generate_content(prompt)
         return response.text.strip()
     except Exception as e:

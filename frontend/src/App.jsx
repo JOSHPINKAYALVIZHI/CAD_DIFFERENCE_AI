@@ -12,7 +12,9 @@ import {
   HelpCircle,
   Sparkles,
   Info,
-  Maximize2
+  Maximize2,
+  MessageSquare,
+  Send
 } from 'lucide-react';
 
 const API_BASE = 'http://localhost:8000';
@@ -23,7 +25,7 @@ function App() {
   const [previewA, setPreviewA] = useState(null);
   const [previewB, setPreviewB] = useState(null);
   
-  const [minArea, setMinArea] = useState(70);
+  const [minArea, setMinArea] = useState(0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [result, setResult] = useState(null);
@@ -33,6 +35,12 @@ function App() {
   
   const [splitPosition, setSplitPosition] = useState(50);
   const [isDraggingSplit, setIsDraggingSplit] = useState(false);
+  const [blendOpacity, setBlendOpacity] = useState(50);
+  const [sidebarTab, setSidebarTab] = useState('info');
+  const [chatHistory, setChatHistory] = useState([]);
+  const [chatInput, setChatInput] = useState('');
+  const [chatLoading, setChatLoading] = useState(false);
+  const chatBottomRef = useRef(null);
   const splitContainerRef = useRef(null);
 
   // File Upload Handlers
@@ -76,6 +84,8 @@ function App() {
     setError(null);
     setResult(null);
     setSelectedRegionId(null);
+    setChatHistory([]);
+    setSidebarTab('info');
     
     const formData = new FormData();
     formData.append('image_a', fileA);
@@ -95,11 +105,85 @@ function App() {
       const data = await response.json();
       setResult(data);
       setViewMode('color_diff');
+      if (minArea === 0 && data.statistics.detected_noise_limit) {
+        setMinArea(data.statistics.detected_noise_limit);
+      }
     } catch (err) {
       setError(err.message);
     } finally {
       setLoading(false);
     }
+  };
+
+  const sendChatMessage = async (messageText) => {
+    const textToSend = messageText || chatInput;
+    if (!textToSend.trim() || chatLoading || !result?.session_id) return;
+    
+    const userMsg = { role: 'user', content: textToSend };
+    const updatedHistory = [...chatHistory, userMsg];
+    setChatHistory(updatedHistory);
+    setChatInput('');
+    setChatLoading(true);
+    
+    try {
+      const response = await fetch(`${API_BASE}/api/v1/compare/${result.session_id}/chat`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          message: textToSend,
+          history: chatHistory.map(h => ({ role: h.role, content: h.content }))
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch AI assistant reply.');
+      }
+      
+      const data = await response.json();
+      setChatHistory([...updatedHistory, { role: 'model', content: data.response }]);
+    } catch (err) {
+      setChatHistory([...updatedHistory, { role: 'model', content: `Error: ${err.message}` }]);
+    } finally {
+      setChatLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (chatBottomRef.current) {
+      chatBottomRef.current.scrollIntoView({ behavior: 'smooth' });
+    }
+  }, [chatHistory, chatLoading]);
+
+  const renderMessageContent = (content) => {
+    if (typeof content !== 'string') return content;
+    const lines = content.split('\n');
+    return lines.map((line, idx) => {
+      let cleanLine = line.trim();
+      let isBullet = false;
+      if (cleanLine.startsWith('*') || cleanLine.startsWith('-')) {
+        isBullet = true;
+        cleanLine = cleanLine.substring(1).trim();
+      }
+      
+      const parts = cleanLine.split('**');
+      const parsedLine = parts.map((part, i) => {
+        if (i % 2 === 1) {
+          return <strong key={i} style={{ fontWeight: '700', color: 'var(--text-primary)' }}>{part}</strong>;
+        }
+        return part;
+      });
+      
+      if (isBullet) {
+        return (
+          <div key={idx} style={{ display: 'flex', gap: '0.4rem', margin: '0.25rem 0', paddingLeft: '0.25rem', alignItems: 'flex-start' }}>
+            <span style={{ color: '#3b82f6', marginTop: '0.15rem', fontSize: '0.8rem' }}>•</span>
+            <span style={{ flex: 1 }}>{parsedLine}</span>
+          </div>
+        );
+      }
+      
+      return <div key={idx} style={{ margin: '0.25rem 0' }}>{parsedLine}</div>;
+    });
   };
 
   // Split view slider handlers
@@ -157,16 +241,42 @@ function App() {
         </div>
         <div className="slider-container">
           <Settings size={16} />
-          <label htmlFor="min-area-slider">Noise Limit: {minArea}px</label>
+          <label htmlFor="min-area-slider">
+            Noise Limit: {minArea === 0 ? 'Auto-Detect' : `${minArea}px`}
+          </label>
           <input 
             id="min-area-slider"
             type="range" 
             min="10" 
             max="300" 
-            value={minArea} 
+            value={minArea === 0 ? 70 : minArea} 
             onChange={(e) => setMinArea(parseInt(e.target.value))} 
             className="slider-input"
           />
+          {minArea !== 0 && (
+            <button 
+              onClick={() => setMinArea(0)} 
+              style={{ 
+                background: 'transparent', 
+                border: '1px solid var(--border-color)', 
+                color: 'var(--text-primary)', 
+                padding: '2px 8px', 
+                borderRadius: '4px', 
+                fontSize: '0.75rem', 
+                cursor: 'pointer',
+                fontWeight: 600,
+                transition: 'all 0.15s'
+              }}
+              onMouseEnter={(e) => {
+                e.target.style.background = 'var(--bg-hover)';
+              }}
+              onMouseLeave={(e) => {
+                e.target.style.background = 'transparent';
+              }}
+            >
+              Auto
+            </button>
+          )}
         </div>
       </header>
 
@@ -415,6 +525,30 @@ function App() {
                         </div>
                       </div>
                     </div>
+                  ) : viewMode === 'blend' ? (
+                    <div className="blend-viewer" style={{ position: 'relative', width: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center', overflow: 'hidden' }}>
+                      {/* Base layer: Reference Drawing */}
+                      <img 
+                        src={`${API_BASE}${result.visualizations.annotated_ref}`} 
+                        alt="Reference Base"
+                        style={{ display: 'block', width: '100%', height: 'auto', userSelect: 'none' }}
+                      />
+                      {/* Overlay layer: Comparison Drawing with dynamic opacity */}
+                      <img 
+                        src={`${API_BASE}${result.visualizations.annotated_cmp}`} 
+                        alt="Comparison Overlay"
+                        style={{ 
+                          position: 'absolute', 
+                          top: 0, 
+                          left: 0, 
+                          width: '100%', 
+                          height: 'auto', 
+                          opacity: blendOpacity / 100, 
+                          userSelect: 'none',
+                          mixBlendMode: 'normal'
+                        }}
+                      />
+                    </div>
                   ) : (
                     <img 
                       src={getViewerImage()} 
@@ -423,51 +557,266 @@ function App() {
                     />
                   )}
                 </div>
+
+                {viewMode === 'blend' && (
+                  <div className="blend-control-bar" style={{ display: 'flex', alignItems: 'center', gap: '1rem', padding: '0.75rem 1rem', background: 'var(--bg-secondary)', borderTop: '1px solid var(--border-color)', borderBottomLeftRadius: '8px', borderBottomRightRadius: '8px', justifyContent: 'center' }}>
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Ref A (Opacity)</span>
+                    <input 
+                      type="range" 
+                      min="0" 
+                      max="100" 
+                      value={blendOpacity} 
+                      onChange={(e) => setBlendOpacity(parseInt(e.target.value))} 
+                      style={{ width: '150px', cursor: 'pointer', accentColor: '#3b82f6' }}
+                    />
+                    <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>Comp B ({blendOpacity}%)</span>
+                  </div>
+                )}
               </div>
 
               {/* Right Column: AI Summary & Stats Details */}
-              <div className="details-panel">
+              <div className="details-panel" style={{ display: 'flex', flexDirection: 'column', gap: '1rem', minHeight: '400px' }}>
                 
-                {/* AI Summary Block */}
-                <div className="summary-box">
-                  <div className="summary-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                      <Sparkles size={16} />
-                      <span>AI Change Summary</span>
-                    </div>
-                    {result.session_id && (
-                      <button 
-                        className="btn" 
-                        style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem', borderRadius: '4px', boxShadow: 'none' }}
-                        onClick={() => window.open(`${API_BASE}/api/v1/compare/${result.session_id}/report`, '_blank')}
-                      >
-                        PDF Report
-                      </button>
-                    )}
-                  </div>
-                  <p style={{ marginTop: '0.5rem' }}>{result.summary}</p>
+                {/* Sidebar Tab Selector Buttons */}
+                <div style={{ display: 'flex', borderBottom: '1px solid var(--border-color)', paddingBottom: '0.5rem', gap: '0.5rem' }}>
+                  <button 
+                    onClick={() => setSidebarTab('info')}
+                    style={{
+                      flex: 1,
+                      background: sidebarTab === 'info' ? 'var(--bg-hover)' : 'transparent',
+                      border: 'none',
+                      borderBottom: sidebarTab === 'info' ? '2px solid #3b82f6' : '2px solid transparent',
+                      color: sidebarTab === 'info' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                      padding: '0.5rem',
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.35rem',
+                      borderRadius: '4px 4px 0 0',
+                      transition: 'all 0.15s'
+                    }}
+                  >
+                    <Sparkles size={14} /> Report Info
+                  </button>
+                  <button 
+                    onClick={() => setSidebarTab('chat')}
+                    style={{
+                      flex: 1,
+                      background: sidebarTab === 'chat' ? 'var(--bg-hover)' : 'transparent',
+                      border: 'none',
+                      borderBottom: sidebarTab === 'chat' ? '2px solid #3b82f6' : '2px solid transparent',
+                      color: sidebarTab === 'chat' ? 'var(--text-primary)' : 'var(--text-secondary)',
+                      padding: '0.5rem',
+                      fontSize: '0.85rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '0.35rem',
+                      borderRadius: '4px 4px 0 0',
+                      transition: 'all 0.15s'
+                    }}
+                  >
+                    <MessageSquare size={14} /> AI Assistant
+                  </button>
                 </div>
 
-                {/* Helpful Legend Box */}
-                <div className="card" style={{ padding: '1rem', background: 'var(--bg-tertiary)' }}>
-                  <h4 style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.5rem', display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
-                    <Info size={14} /> Legend (Difference Map)
-                  </h4>
-                  <div style={{ fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span style={{ width: '12px', height: '12px', background: 'var(--color-danger)', borderRadius: '2px' }}></span>
-                      <span>Removed Content (In A only)</span>
+                {sidebarTab === 'info' ? (
+                  <>
+                    {/* AI Summary Block */}
+                    <div className="summary-box">
+                      <div className="summary-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
+                          <Sparkles size={16} />
+                          <span>AI Change Summary</span>
+                        </div>
+                        {result.session_id && (
+                          <button 
+                            className="btn" 
+                            style={{ padding: '0.25rem 0.75rem', fontSize: '0.8rem', borderRadius: '4px', boxShadow: 'none' }}
+                            onClick={() => window.open(`${API_BASE}/api/v1/compare/${result.session_id}/report`, '_blank')}
+                          >
+                            PDF Report
+                          </button>
+                        )}
+                      </div>
+                      <p style={{ marginTop: '0.5rem' }}>{result.summary}</p>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span style={{ width: '12px', height: '12px', background: 'var(--color-success)', borderRadius: '2px' }}></span>
-                      <span>Added Content (In B only)</span>
+
+                    {/* Helpful Legend Box */}
+                    <div className="card" style={{ padding: '1rem', background: 'var(--bg-tertiary)' }}>
+                      <h4 style={{ fontSize: '0.85rem', fontWeight: 700, marginBottom: '0.5rem', display: 'flex', gap: '0.25rem', alignItems: 'center' }}>
+                        <Info size={14} /> Legend (Difference Map)
+                      </h4>
+                      <div style={{ fontSize: '0.8rem', display: 'flex', flexDirection: 'column', gap: '0.4rem' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ width: '12px', height: '12px', background: 'var(--color-danger)', borderRadius: '2px' }}></span>
+                          <span>Removed Content (In A only)</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ width: '12px', height: '12px', background: 'var(--color-success)', borderRadius: '2px' }}></span>
+                          <span>Added Content (In B only)</span>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <span style={{ width: '12px', height: '12px', background: '#3b82f6', borderRadius: '2px' }}></span>
+                          <span>Modified / Shifted Line-work</span>
+                        </div>
+                      </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                      <span style={{ width: '12px', height: '12px', background: '#3b82f6', borderRadius: '2px' }}></span>
-                      <span>Modified / Shifted Line-work</span>
+                  </>
+                ) : (
+                  /* Chat Assistant UI Block */
+                  <div style={{ display: 'flex', flexDirection: 'column', flexGrow: 1, overflow: 'hidden' }}>
+                    <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.25rem' }}>
+                      <HelpCircle size={14} />
+                      <span>Ask questions to understand the drawings simply.</span>
+                    </div>
+
+                    {/* Scrollable messages container */}
+                    <div 
+                      style={{ 
+                        flexGrow: 1, 
+                        maxHeight: '300px', 
+                        minHeight: '260px', 
+                        overflowY: 'auto', 
+                        display: 'flex', 
+                        flexDirection: 'column', 
+                        gap: '0.75rem', 
+                        padding: '0.75rem', 
+                        border: '1px solid var(--border-color)', 
+                        borderRadius: '6px', 
+                        background: 'var(--bg-secondary)',
+                        marginBottom: '0.75rem'
+                      }}
+                    >
+                      {chatHistory.length === 0 ? (
+                        <div style={{ display: 'flex', flexDirection: 'column', justifyItems: 'center', alignItems: 'center', margin: 'auto', gap: '0.25rem', opacity: 0.65, textAlign: 'center', padding: '1rem' }}>
+                          <MessageSquare size={28} style={{ color: '#3b82f6', marginBottom: '0.25rem' }} />
+                          <p style={{ fontSize: '0.8rem', fontWeight: 600 }}>CAD Assistant Ready</p>
+                          <p style={{ fontSize: '0.7rem', color: 'var(--text-secondary)' }}>Click a suggestion below or type your question.</p>
+                        </div>
+                      ) : (
+                        chatHistory.map((msg, index) => (
+                          <div 
+                            key={index} 
+                            style={{ 
+                              alignSelf: msg.role === 'user' ? 'flex-end' : 'flex-start',
+                              background: msg.role === 'user' ? '#3b82f6' : 'var(--bg-tertiary)',
+                              color: msg.role === 'user' ? '#ffffff' : 'var(--text-primary)',
+                              border: msg.role === 'user' ? 'none' : '1px solid var(--border-color)',
+                              padding: '0.5rem 0.75rem',
+                              borderRadius: msg.role === 'user' ? '12px 12px 0 12px' : '12px 12px 12px 0',
+                              fontSize: '0.8rem',
+                              maxWidth: '85%',
+                              lineHeight: '1.4',
+                              whiteSpace: 'pre-wrap',
+                              boxShadow: '0 1px 2px rgba(0, 0, 0, 0.05)'
+                            }}
+                          >
+                            {renderMessageContent(msg.content)}
+                          </div>
+                        ))
+                      )}
+                      
+                      {chatLoading && (
+                        <div 
+                          style={{ 
+                            alignSelf: 'flex-start',
+                            background: 'var(--bg-tertiary)',
+                            color: 'var(--text-secondary)',
+                            border: '1px solid var(--border-color)',
+                            padding: '0.5rem 0.75rem',
+                            borderRadius: '12px 12px 12px 0',
+                            fontSize: '0.8rem',
+                            maxWidth: '85%',
+                            display: 'flex',
+                            gap: '0.35rem',
+                            alignItems: 'center'
+                          }}
+                        >
+                          <span className="spinner" style={{ width: '10px', height: '10px', borderWidth: '1.5px', margin: 0 }}></span>
+                          Thinking...
+                        </div>
+                      )}
+                      <div ref={chatBottomRef} />
+                    </div>
+
+                    {/* Quick Suggestion Pills */}
+                    {chatHistory.length === 0 && (
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.35rem', marginBottom: '0.75rem' }}>
+                        {[
+                          "Explain changes in simple terms",
+                          "What is Region 1?",
+                          "How do I read this map?",
+                          "Is the similarity score high?"
+                        ].map((prompt, idx) => (
+                          <button
+                            key={idx}
+                            onClick={() => sendChatMessage(prompt)}
+                            style={{
+                              background: 'transparent',
+                              border: '1px solid var(--border-color)',
+                              color: 'var(--text-secondary)',
+                              padding: '4px 8px',
+                              borderRadius: '12px',
+                              fontSize: '0.7rem',
+                              cursor: 'pointer',
+                              fontWeight: 500,
+                              transition: 'all 0.15s'
+                            }}
+                            onMouseEnter={(e) => { e.target.style.borderColor = '#3b82f6'; e.target.style.color = '#3b82f6'; }}
+                            onMouseLeave={(e) => { e.target.style.borderColor = 'var(--border-color)'; e.target.style.color = 'var(--text-secondary)'; }}
+                          >
+                            {prompt}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Chat Input Field & Send Button */}
+                    <div style={{ display: 'flex', gap: '0.4rem' }}>
+                      <input 
+                        type="text" 
+                        placeholder="Ask a question..."
+                        value={chatInput}
+                        onChange={(e) => setChatInput(e.target.value)}
+                        onKeyDown={(e) => { if (e.key === 'Enter') sendChatMessage(); }}
+                        disabled={chatLoading}
+                        style={{ 
+                          flexGrow: 1, 
+                          background: 'var(--bg-card)', 
+                          color: 'var(--text-primary)', 
+                          border: '1px solid var(--border-color)', 
+                          padding: '0.5rem 0.75rem', 
+                          borderRadius: '4px', 
+                          fontSize: '0.8rem' 
+                        }}
+                      />
+                      <button 
+                        onClick={() => sendChatMessage()}
+                        disabled={chatLoading || !chatInput.trim()}
+                        style={{ 
+                          background: '#3b82f6', 
+                          color: '#ffffff', 
+                          border: 'none', 
+                          padding: '0.5rem 0.85rem', 
+                          borderRadius: '4px', 
+                          cursor: 'pointer', 
+                          display: 'flex', 
+                          alignItems: 'center', 
+                          justifyContent: 'center',
+                          opacity: (chatLoading || !chatInput.trim()) ? 0.6 : 1
+                        }}
+                      >
+                        <Send size={14} />
+                      </button>
                     </div>
                   </div>
-                </div>
+                )}
               </div>
             </div>
 

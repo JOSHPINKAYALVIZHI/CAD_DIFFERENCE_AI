@@ -5,7 +5,7 @@ import json
 os.environ["UPLOAD_DIR"] = "app/uploads"
 os.environ["OUTPUT_DIR"] = "app/outputs"
 
-from app.services.preprocess import preprocess_and_load, align_images
+from app.services.preprocess import preprocess_and_load, align_images, crop_and_normalize_pair
 from app.services.compare import detect_differences
 from app.services.statistics import calculate_statistics
 from app.services.visualize import save_visualizations
@@ -18,6 +18,10 @@ def run_test():
     print("\n[Step 1] Loading sample drawings...")
     ref = preprocess_and_load("samples/drawing_v1.png")
     cmp = preprocess_and_load("samples/drawing_v2.png")
+    
+    # Crop empty margins jointly and normalize resolution
+    ref, cmp = crop_and_normalize_pair(ref, cmp)
+    
     print(f"Reference shape: {ref.shape}")
     print(f"Comparison shape: {cmp.shape}")
     

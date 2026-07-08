@@ -1,0 +1,35 @@
+# Python Cache
+**/__pycache__/
+**/*.py[cod]
+**/*.egg-info/
+
+# Virtual Environment
+backend/.venv/
+backend/venv/
+backend/env/
+
+# Server Environment Configurations
+backend/.env
+
+# IDE Configs
+.vscode/
+.idea/
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# Uploads & Outputs (Ignore all CAD drawing uploads, outputs, and cropped region parts)
+backend/app/uploads/*
+backend/app/outputs/*
+!backend/app/uploads/.gitkeep
+!backend/app/outputs/.gitkeep
+
+# Samples (ignore generated test run visuals to prevent git clutter)
+samples/test_run_*.png
+
+# Node / React
+frontend/node_modules/
+frontend/dist/
+frontend/.eslintcache

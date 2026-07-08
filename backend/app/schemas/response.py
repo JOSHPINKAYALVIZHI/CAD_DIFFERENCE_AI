@@ -17,6 +17,7 @@ class DiffStatistics(BaseModel):
     total_changed_area_px: float
     change_percentage: float
     regions: List[RegionInfo]
+    detected_noise_limit: Optional[int] = None
 
 class ComparisonResponse(BaseModel):
     session_id: str
